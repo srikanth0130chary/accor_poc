@@ -1,0 +1,51 @@
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: redemption-burst
+spec:
+  template:
+    metadata:
+      labels:
+        role: burst
+    spec:
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]     # on-demand, not spot - revenue-critical path, can't risk reclamation mid-spike
+        - key: node.kubernetes.io/instance-type
+          operator: In
+          values: ["m6i.large", "m6i.xlarge", "m6a.large", "m6a.xlarge", "c6i.large"]
+        - key: topology.kubernetes.io/zone
+          operator: In
+          values: ["ap-southeast-1a", "ap-southeast-1b", "ap-southeast-1c"]
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: redemption-burst
+      taints: []
+  limits:
+    cpu: "500"      # hard ceiling on burst spend even during a runaway spike
+    memory: 1000Gi
+  disruption:
+    consolidationPolicy: WhenEmptyOrUnderutilized
+    consolidateAfter: 5m   # scale burst nodes back down 5 min after the spike passes
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: redemption-burst
+spec:
+  amiFamily: AL2023
+  role: "<KARPENTER_NODE_IAM_ROLE_NAME>"
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: the-redemption
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: the-redemption
+  metadataOptions:
+    httpEndpoint: enabled
+    httpTokens: required   # IMDSv2 only - defense in depth on every burst node

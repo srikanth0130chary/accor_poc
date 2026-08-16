@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: redemption-app
+  namespace: redemption
+  labels:
+    app: redemption-app
+spec:
+  type: ClusterIP # ALB targets pods directly via Ingress (IP mode), Service is for internal/cluster use
+  selector:
+    app: redemption-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: http

@@ -1,0 +1,54 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: redemption-app
+  namespace: redemption
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: redemption-app
+  minReplicas: 6    # covers steady baseline traffic
+  maxReplicas: 90   # covers the 10x Flash Sale spike with headroom
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 60
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 70
+    # Requires the Prometheus Adapter (installed alongside kube-prometheus-stack)
+    # exposing this as a custom metric - scales on load signal directly
+    # rather than waiting for CPU to catch up, which matters for a spike
+    # that arrives in seconds.
+    - type: Pods
+      pods:
+        metric:
+          name: http_requests_per_second
+        target:
+          type: AverageValue
+          averageValue: "50"
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0    # react immediately to a Flash Sale spike
+      policies:
+        - type: Percent
+          value: 100
+          periodSeconds: 30
+        - type: Pods
+          value: 10
+          periodSeconds: 30
+      selectPolicy: Max
+    scaleDown:
+      stabilizationWindowSeconds: 300  # scale down cautiously to avoid flapping after a spike passes
+      policies:
+        - type: Percent
+          value: 20
+          periodSeconds: 60
+      selectPolicy: Min

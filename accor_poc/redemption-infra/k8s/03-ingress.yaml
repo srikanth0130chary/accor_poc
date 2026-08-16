@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: redemption-app
+  namespace: redemption
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip          # bypasses NodePort hop, targets pod IPs directly
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: "<ACM_CERT_ARN>"
+    alb.ingress.kubernetes.io/ssl-policy: ELBSecurityPolicy-TLS13-1-2-2021-06
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz/ready
+    alb.ingress.kubernetes.io/wafv2-acl-arn: "<WAFV2_ACL_ARN>"
+    alb.ingress.kubernetes.io/shield-advanced-protection: "false"
+    # cross-zone load balancing is on by default for ALB - keep traffic
+    # balanced across AZs even as Karpenter adds nodes unevenly during a spike
+spec:
+  rules:
+    - host: redemption.accor.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: redemption-app
+                port:
+                  number: 80

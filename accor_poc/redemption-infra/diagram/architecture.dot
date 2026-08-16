@@ -1,0 +1,79 @@
+digraph TheRedemption {
+  rankdir=TB;
+  fontname="Helvetica";
+  node [fontname="Helvetica", fontsize=11, shape=box, style="rounded,filled"];
+  edge [fontname="Helvetica", fontsize=9];
+
+  labelloc="t";
+  label="The Redemption — AWS EKS Architecture (Zero-Downtime, 10x Burst)";
+  fontsize=18;
+
+  Internet [label="Internet\n(Members / Flash Sale traffic)", shape=ellipse, fillcolor="#f5f5f5"];
+
+  subgraph cluster_aws {
+    label="AWS Account — ap-southeast-1";
+    style=dashed; color="#999999";
+
+    WAF [label="AWS WAF", fillcolor="#f9d976"];
+
+    subgraph cluster_vpc {
+      label="VPC 10.40.0.0/16";
+      style=dashed; color="#666666";
+
+      subgraph cluster_pub {
+        label="Public Subnets (3 AZs)";
+        style=filled; fillcolor="#fdf3e0";
+        ALB [label="ALB\n(internet-facing, TLS 1.2+)", fillcolor="#f9d976"];
+        NAT [label="NAT Gateways\n(1 per AZ)", fillcolor="#f9d976"];
+      }
+
+      subgraph cluster_priv {
+        label="Private Subnets (3 AZs)";
+        style=filled; fillcolor="#e8f0fe";
+
+        EKS [label="EKS Control Plane\n(private endpoint)", fillcolor="#a8c8f0"];
+
+        subgraph cluster_baseline {
+          label="Baseline Managed Node Group\n(min 3 / desired 6 / max 9)";
+          style=filled; fillcolor="#d4e6f9";
+          Pods1 [label="redemption-app pods\n(topology-spread across AZs)", fillcolor="#c9e4ff"];
+        }
+
+        subgraph cluster_karpenter {
+          label="Karpenter Burst NodePool\n(on-demand, scales 0→N in seconds)";
+          style=filled; fillcolor="#fde2e2";
+          Pods2 [label="burst redemption-app pods", fillcolor="#ffd0d0"];
+        }
+
+        HPA [label="HPA\n(CPU / mem / RPS)", shape=diamond, fillcolor="#fff2b2"];
+        Karpenter [label="Karpenter Controller", fillcolor="#fff2b2"];
+      }
+
+      subgraph cluster_data {
+        label="Isolated Data Subnets (3 AZs)";
+        style=filled; fillcolor="#eafaf1";
+        Dynamo [label="DynamoDB\nPoints Ledger\n(PAY_PER_REQUEST, PITR)", fillcolor="#a8e6b0"];
+        Secrets [label="Secrets Manager", fillcolor="#a8e6b0"];
+      }
+    }
+
+    Prom [label="kube-prometheus-stack\n(Prometheus / Grafana / Alertmanager)", fillcolor="#e0d4f7"];
+    ArgoCD [label="ArgoCD (GitOps)", fillcolor="#e0d4f7"];
+    Git [label="Git Repo\n(Terraform + K8s manifests)", shape=note, fillcolor="#f5f5f5"];
+  }
+
+  Internet -> WAF -> ALB;
+  ALB -> Pods1 [label="target-type: ip"];
+  ALB -> Pods2 [label="target-type: ip"];
+  HPA -> Pods1 [style=dashed, label="scales"];
+  HPA -> Pods2 [style=dashed, label="scales"];
+  Karpenter -> Pods2 [style=dashed, label="provisions nodes for"];
+  Pods1 -> Dynamo [label="IRSA-scoped\nread/write"];
+  Pods2 -> Dynamo;
+  Pods1 -> Secrets [label="IRSA-scoped\nGetSecretValue"];
+  Pods1 -> NAT [style=dotted, label="egress"];
+  Prom -> Pods1 [style=dashed, label="scrape :9090"];
+  Prom -> HPA [style=dashed, label="custom metrics"];
+  Git -> ArgoCD [label="sync"];
+  ArgoCD -> EKS [label="apply"];
+}

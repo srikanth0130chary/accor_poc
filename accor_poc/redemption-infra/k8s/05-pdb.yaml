@@ -1,0 +1,12 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redemption-app
+  namespace: redemption
+spec:
+  # Guarantees at least 80% of desired capacity stays up through any
+  # voluntary disruption (node drain, cluster upgrade, Karpenter consolidation).
+  minAvailable: 80%
+  selector:
+    matchLabels:
+      app: redemption-app
