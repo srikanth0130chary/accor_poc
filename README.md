@@ -1,8 +1,7 @@
 # The Redemption — Cloud Engineer
 
 Infrastructure-as-Code and Kubernetes manifests for "The Redemption," a
-business-critical hotel-points-deduction microservice on AWS EKS, built for
-Accor's Preliminary Technical Assessment (Cloud Engineer).
+business-critical hotel-points-deduction microservice on AWS EKS, built for Accor's.
 
 See **accor_poc/redemption-infra/design-document.pdf**
   for the full executive summary, architectural decisions, trade-offs, and team delegation plan.
