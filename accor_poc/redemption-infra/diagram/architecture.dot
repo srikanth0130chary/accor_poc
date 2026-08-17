@@ -29,7 +29,7 @@ digraph TheRedemption {
 
       subgraph cluster_priv {
         label="Private Subnets (3 AZs)";
-        style=filled; fillcolor="#e8f0fe";
+        style=filled; fillcolor="#fee8f9";
 
         EKS [label="EKS Control Plane\n(private endpoint)", fillcolor="#a8c8f0"];
 
