@@ -77,3 +77,4 @@ digraph TheRedemption {
   Git -> ArgoCD [label="sync"];
   ArgoCD -> EKS [label="apply"];
 }
+
